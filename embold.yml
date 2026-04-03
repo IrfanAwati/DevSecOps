@@ -1,0 +1,156 @@
+name: Embold Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      embold_repo_id:
+        description: "Embold repository UID to scan"
+        required: true
+        type: string
+    secrets:
+      EMBOLD_API_KEY:
+        required: true
+
+jobs:
+  embold-scan:
+    name: Run Embold Scan
+    runs-on: <runner-name>
+
+    env:
+      EMBOLD_REPO_UID: ${{ inputs.embold_repo_id }}
+      EMBOLD_BASE_URL: https://<embold-url>/
+      EMBOLD_SNAPSHOT_LABEL: ghrunner-${{ github.head_ref || github.ref_name }}-${{ github.run_number }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run Embold Scan
+      id: embold-scan
+      uses: embold/github-action-docker@v2.0.0
+      continue-on-error: ${{ fromJSON(vars.EMBOLD_CONTINUE_ON_ERROR || 'false') }}
+      timeout-minutes: 15
+      env:
+        DOTNET_BUNDLE_EXTRACT_BASE_DIR: ${{ runner.temp }}
+      with:
+        emboldUrl: ${{ env.EMBOLD_BASE_URL }}
+        emboldToken: ${{ secrets.EMBOLD_API_KEY }}
+        emboldRepoUid: ${{ env.EMBOLD_REPO_UID }}
+        downloadConfig: true
+        qualityGate: true
+        verbose: false
+        snapshotLabel: ${{ env.EMBOLD_SNAPSHOT_LABEL }}
+
+    - name: Add Embold quality summary to Job Summary
+      if: always()
+      shell: bash
+      env:
+        EMBOLD_TOKEN: ${{ secrets.EMBOLD_API_KEY }}
+      run: |
+        embold_report_url="${EMBOLD_BASE_URL%/}/backlink?pluginName=repository_dashboard&repoUid=${EMBOLD_REPO_UID}"
+        api_url="${EMBOLD_BASE_URL%/}/api/v1/repositories/${EMBOLD_REPO_UID}/qualitygateprofiles"
+        kpis_api_url="${EMBOLD_BASE_URL%/}/api/v1/repositories/${EMBOLD_REPO_UID}/kpis"
+
+        api_response="$(curl --silent --show-error --http1.1 -X GET "$api_url" -H "Authorization: Bearer ${EMBOLD_TOKEN}" || true)"
+        kpis_response="$(curl --silent --show-error --http1.1 -X GET "$kpis_api_url" -H "Authorization: Bearer ${EMBOLD_TOKEN}" || true)"
+        qg_status="$(echo "$api_response" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)"
+
+        if [[ -z "$qg_status" ]]; then
+          qg_status='${{ steps.embold-scan.outputs.qualityGateStatus }}'
+        fi
+
+        cat <<MD >> "$GITHUB_STEP_SUMMARY"
+        ## Embold Report
+
+        - Quality Gate Status: **${qg_status:-UNKNOWN}**
+        - Detailed report: [Open Embold Report](${embold_report_url})
+        MD
+
+        if [[ -n "$api_response" ]]; then
+          if command -v jq &>/dev/null && echo "$api_response" | jq -e '.summary' &>/dev/null; then
+            qg_name="$(echo "$api_response" | jq -r '.name')"
+            qg_overall="$(echo "$api_response" | jq -r 'if .status == "passed" then "✅ PASSED" else "❌ FAILED" end')"
+            new_code_count="$(echo "$api_response" | jq '.new_code_summary | length')"
+            {
+              echo ""
+              echo "### Quality Gate: **${qg_name}** - ${qg_overall}"
+              echo ""
+              echo "| Metric | Rule | Value | Threshold | Status |"
+              echo "|--------|------|-------|-----------|--------|"
+              echo "$api_response" | jq -r '
+                .summary[] |
+                [
+                  .name,
+                  .rule,
+                  (.value | if type == "number" then tostring else . end),
+                  (.thresholdValue | if type == "number" then tostring else . end),
+                  (if .status == "passed" then "✅ passed" else "❌ \(.status)" end)
+                ] | "| " + join(" | ") + " |"
+              '
+            } >> "$GITHUB_STEP_SUMMARY"
+            if [[ "$new_code_count" -gt 0 ]]; then
+              {
+                echo ""
+                echo "#### New Code Summary"
+                echo ""
+                echo "| Metric | Rule | Value | Threshold | Status |"
+                echo "|--------|------|-------|-----------|--------|"
+                echo "$api_response" | jq -r '
+                  .new_code_summary[] |
+                  [
+                    .name,
+                    .rule,
+                    (.value | if type == "number" then tostring else . end),
+                    (.thresholdValue | if type == "number" then tostring else . end),
+                    (if .status == "passed" then "✅ passed" else "❌ \(.status)" end)
+                  ] | "| " + join(" | ") + " |"
+                '
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            {
+              echo ""
+              echo "<details><summary>Quality Gate API Response</summary>"
+              echo ""
+              echo '```json'
+              echo "$api_response"
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
+
+        if [[ -n "$kpis_response" ]]; then
+          if command -v jq &>/dev/null && echo "$kpis_response" | jq -e 'type == "object"' &>/dev/null; then
+            {
+              echo ""
+              echo "### KPIs"
+              echo ""
+              echo "| KPI | Value |"
+              echo "|-----|-------|"
+              echo "$kpis_response" | jq -r '
+                to_entries | sort_by(.key)[] |
+                [
+                  .key,
+                  (.value | if type == "number" then tostring else . end)
+                ] | "| " + join(" | ") + " |"
+              '
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo ""
+              echo "<details><summary>KPI API Response</summary>"
+              echo ""
+              echo '```json'
+              echo "$kpis_response"
+              echo '```'
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+        fi
+
+    - name: Check Quality Gate Result
+      if: steps.embold-scan.outputs.qualityGateStatus == 'FAILED'
+      run: |
+        echo "Quality gate failed!"
+        exit 1
