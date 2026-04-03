@@ -6,7 +6,19 @@
 
 A complete, easy-to-use GitHub repository that wires Embold static analysis into your CI/CD pipeline with an actionable workflow and docs for users.
 
-## 🚀 What this repo includes
+## � Table of Contents
+
+- [What this repo includes](#-what-this-repo-includes)
+- [What it does](#-what-it-does)
+- [How the workflow runs](#-how-the-workflow-runs)
+- [Setup](#-setup-recommended)
+- [Why this is useful](#-why-this-is-useful)
+- [How to make your GitHub repo look informative](#-how-to-make-your-github-repo-look-informative)
+- [Suggested enhancements](#-suggested-enhancements)
+- [Contribution](#-contribution)
+- [License](#-license)
+
+## �🚀 What this repo includes
 
 - `embold.yml`: reusable GitHub Actions workflow for Embold scanning (`workflow_call` entrypoint)
 - `embol-selfrunner.yml`: record of a runner configuration for Embold scanning
@@ -38,7 +50,17 @@ This repository demonstrates how to run Embold automated scanning from GitHub wo
 
 - `runs-on`: defines the execution environment (self-hosted runner or GitHub-hosted), ensuring dependencies are available.
 
+```yaml
+# example workflow runner selection
+runs-on: ubuntu-latest  # or self-hosted label
+```
+
 - `actions/checkout@v4`: fetches the codebase into the runner workspace so Embold can analyze the latest files.
+
+```yaml
+- name: Checkout repository
+  uses: actions/checkout@v4
+```
 
 - `embold/github-action-docker@v2.0.0`:
   - `emboldUrl`: Embold server endpoint
@@ -47,11 +69,37 @@ This repository demonstrates how to run Embold automated scanning from GitHub wo
   - `downloadConfig`: pulls project-specific Embold settings
   - `qualityGate`: evaluate and enforce policy thresholds
   - `snapshotLabel`: attach a unique filename/tag for traceability
+```yaml
+
+name: Run Embold Scan
+id: embold-scan
+uses: embold/github-action-docker@v2.0.0
+continue-on-error: ${{ fromJSON(varsEMBOLD_CONTINUE_ON_ERROR || 'false') }}
+timeout-minutes: 15
+env:
+    DOTNET_BUNDLE_EXTRACT_BASE_DIR: ${{ runner.temp }}
+with:
+    emboldUrl: ${{ env.EMBOLD_BASE_URL }}
+    emboldToken: ${{ secrets.EMBOLD_API_KEY }}
+    emboldRepoUid: ${{ env.EMBOLD_REPO_UID }}
+    downloadConfig: true
+    qualityGate: true
+    verbose: false
+    snapshotLabel: ${{ env.EMBOLD_SNAPSHOT_LABEL }}
+```
 
 - `Add Embold quality summary to Job Summary`:
   - Reads quality gate details from Embold HTTP APIs
   - Outputs a concise report in GitHub workflow summary
   - Includes metrics (passed/failed, KPIs, and link to full UI report)
+
+```yaml
+name: Check Quality Gate Result
+if: steps.embold-scan.outputs.qualityGateStatus == 'FAILED'
+run: |
+    echo "Quality gate failed!"
+    exit 1
+```
 
 - `Check Quality Gate Result`:
   - If Embold reports failure, this step causes the job to fail
