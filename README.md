@@ -93,6 +93,9 @@ with:
   - Outputs a concise report in GitHub workflow summary
   - Includes metrics (passed/failed, KPIs, and link to full UI report)
 
+- `Check Quality Gate Result`:
+  - If Embold reports failure, this step causes the job to fail
+  - Prevents merges when quality standards are not met
 ```yaml
 name: Check Quality Gate Result
 if: steps.embold-scan.outputs.qualityGateStatus == 'FAILED'
@@ -101,9 +104,7 @@ run: |
     exit 1
 ```
 
-- `Check Quality Gate Result`:
-  - If Embold reports failure, this step causes the job to fail
-  - Prevents merges when quality standards are not met
+
 
 - Optional QA: add `actionlint` job to keep workflow syntax valid, and add Cypress-like tests to validate scan success conditions when desired.
 
@@ -135,32 +136,3 @@ jobs:
 - Enforces consistent code quality with quality gates.
 - Gives teams a single source of truth for Embold policy progress.
 - Generates audit-friendly metadata (`GITHUB_STEP_SUMMARY`) and charting KPIs.
-
-## 🔍 How to make your GitHub repo look informative
-
-- Add badges at the top:
-  - Embold scan status
-  - Build status
-  - Code coverage
-- Keep this README up to date with usage examples and variable descriptions.
-- Add `docs/` with:
-  - `architecture.md`
-  - `getting-started.md`
-  - `contributing.md`
-- Include an example `embold-config` snippet and policy notes.
-
-## ✅ Suggested enhancements
-
-- Add `actionlint` for workflow YAML validation.
-- Add regeneration script for Embold status badge.
-- Add `security` policy document and contributor code-of-conduct.
-
-## 🤝 Contribution
-
-- Fork, branch, PR.
-- Update README with meaningful, non-ambiguous instructions.
-- Keep pipeline behavior idempotent and test locally with `act` if available.
-
-## 📄 License
-
-Choose license for reuse (MIT, Apache-2.0, etc.).
