@@ -1,0 +1,33 @@
+resource_group_name = "devsecops-rg"
+location            = "East US"
+
+storage_account_name             = "devsecops"
+storage_account_tier             = "Standard"
+storage_account_replication_type = "GRS"
+
+key_vault_name           = "devsecops-kv"
+key_vault_key_name       = "vm-disk-encryption-key"
+disk_encryption_set_name = "devsecops-des"
+
+virtual_network_name = "devsecops-vnet"
+address_space        = ["10.0.0.0/16"]
+
+subnet_name             = "devsecops-subnet"
+subnet_address_prefixes = ["10.0.1.0/24"]
+
+nsg_name       = "devsecops-nsg"
+nic_name       = "devsecops-nic"
+public_ip_name = "devsecops-pip"
+
+vm_name             = "devsecops-vm"
+vm_size             = "Standard_B2s"
+admin_username      = "azureuser"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"  # Update to your SSH key path
+allowed_ssh_cidr    = "0.0.0.0/0"           # Change to your IP for security
+
+tags = {
+  Environment = "dev"
+  Project     = "DevSecOps"
+  Owner       = "YourTeam"
+  Managed     = "Terraform"
+}
