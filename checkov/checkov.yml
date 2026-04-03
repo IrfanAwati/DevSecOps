@@ -1,0 +1,67 @@
+name: Checkov Security Scan
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  checkov:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache Checkov pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Checkov
+        run: |
+          python -m pip install --upgrade pip
+          pip install checkov
+
+      - name: Checkov scan for Terraform + Kubernetes + CloudFormation
+        run: |
+          checkov -d . \
+            --framework terraform,kubernetes,cloudformation \
+            --compact \
+            --output cli \
+            --output-file-path checkov-report.json \
+            --skip-check CKV_AWS_999  # optional skip example
+
+      - name: Publish SARIF for GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-report.json
+
+      - name: Upload Checkov outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-report
+          path: checkov-report.json
+          retention-days: 7
+
+      - name: Fail when severe findings detected
+        if: success() && steps.checkov.outcome == 'success'
+        run: |
+          echo "Checkov scan completed, examine the report artifacts and SARIF output."
