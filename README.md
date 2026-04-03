@@ -8,20 +8,21 @@ A complete, easy-to-use GitHub repository that wires Embold static analysis into
 
 ## � Table of Contents
 
+- [Why this is useful](#-why-this-is-useful)
 - [What this repo includes](#-what-this-repo-includes)
 - [What it does](#-what-it-does)
 - [How the workflow runs](#-how-the-workflow-runs)
 - [Setup](#-setup-recommended)
-- [Why this is useful](#-why-this-is-useful)
-- [How to make your GitHub repo look informative](#-how-to-make-your-github-repo-look-informative)
-- [Suggested enhancements](#-suggested-enhancements)
-- [Contribution](#-contribution)
-- [License](#-license)
 
+## 📌 Why this is useful
+
+- Enables shift-left security by integrating analysis into PR checks.
+- Enforces consistent code quality with quality gates.
+- Gives teams a single source of truth for Embold policy progress.
+- Generates audit-friendly metadata (`GITHUB_STEP_SUMMARY`) and charting KPIs.
 ## �🚀 What this repo includes
 
 - `embold.yml`: reusable GitHub Actions workflow for Embold scanning (`workflow_call` entrypoint)
-- `embol-selfrunner.yml`: record of a runner configuration for Embold scanning
 - `README.md`: this user-facing documentation
 
 ## 🎯 What it does
@@ -104,8 +105,6 @@ run: |
     exit 1
 ```
 
-
-
 - Optional QA: add `actionlint` job to keep workflow syntax valid, and add Cypress-like tests to validate scan success conditions when desired.
 
 ## 🛠️ Setup (recommended)
@@ -130,9 +129,3 @@ jobs:
       EMBOLD_API_KEY: ${{ secrets.EMBOLD_API_KEY }}
 ```
 
-## 📌 Why this is useful
-
-- Enables shift-left security by integrating analysis into PR checks.
-- Enforces consistent code quality with quality gates.
-- Gives teams a single source of truth for Embold policy progress.
-- Generates audit-friendly metadata (`GITHUB_STEP_SUMMARY`) and charting KPIs.
