@@ -32,11 +32,12 @@ jobs:
         run: |
           checkov -d ./checkov/kubernetes-dummy \
             --framework kubernetes \
+            --summary-position bottom \
             --compact \
             --output cli \
             --output sarif \
             --output-file-path checkov-kubernetes-report.sarif
-            --summary-position bottom
+            
 
       - name: Upload Checkov SARIF report
         uses: github/codeql-action/upload-sarif@v4
