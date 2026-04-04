@@ -1,4 +1,5 @@
 resource "azurerm_key_vault" "main" {
+  # checkov:skip=CKV_AZURE_189: skipping HIGH issues for test
   name                = var.key_vault_name
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
