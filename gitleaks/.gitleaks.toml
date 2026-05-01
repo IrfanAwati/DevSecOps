@@ -1,0 +1,22 @@
+title = "Gitleaks sample configuration"
+
+[[rules]]
+id = "AWSSecretAccessKey"
+description = "AWS secret access key pattern"
+regex = '''(?i)aws(.{0,20})?(secret|access)?.{0,20}['"][A-Za-z0-9/+=]{40}['"]'''
+tags = ["aws", "secret"]
+
+[[rules]]
+id = "GenericApiKey"
+description = "Generic API key pattern"
+regex = '''(?i)(api|key|token)[\s:=]{0,10}[A-Za-z0-9-_]{20,50}'''
+tags = ["api", "key"]
+
+[[allowlist]]
+description = "Example allowlist rule for documented token strings"
+regex = '''example[-_].*token'''
+path = '''docs/'''
+
+[[allowlist]]
+description = "Do not scan generated vendor files"
+path = '''vendor/'''
